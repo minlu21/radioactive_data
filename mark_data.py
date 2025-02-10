@@ -4,7 +4,7 @@ import pandas as pd
 from PIL import Image
 
 import torch
-from data.loaders import imagenet as imgnet
+from data.src.loaders import imagenet as imgnet
 
 random.seed(42)
 
@@ -12,17 +12,21 @@ random.seed(42)
 mark_class = random.randint(1, 1000)
 
 # Get the list of absolute paths of all images that belong to this class
-root_dir = os.path.abspath("./data")
-mapping_df = pd.read_csv(root_dir + "/mapping.csv", header=0)
+root_dir = os.path.abspath("./")
+mapping_df = pd.read_csv(os.path.join(root_dir, "mapping.csv"), header=0)
 print(f"Marking class {mapping_df.iloc[mark_class, 1]} as radioactive...")
 
-imagenet = imgnet.ImageNet10K("data/imagenet10K.csv", labels="data/mapping.csv")
-sub_dir = "imagenet10K/" + mapping_df.iloc[mark_class, 0]
+imagenet = imgnet.ImageNet10K("imagenet10K.csv", labels="mapping.csv")
+dataset_rootdir = "../../scratch/imagenet10K/"
+sub_dir = os.path.join(dataset_rootdir, mapping_df.iloc[mark_class, 0])
+# sub_dir = "data/imagenet10K/" + mapping_df.iloc[mark_class, 0]
 img_paths = []
 marked_imgs = dict()
-for img_file in os.listdir(os.path.join(root_dir, sub_dir)):
+# img_folder_path = os.path.join(root_dir, sub_dir) # use if image dataset is inside data
+img_folder_path = sub_dir
+for img_file in os.listdir(img_folder_path):
     marked_imgs[imagenet.get_row(img_file)] = img_file.replace(".JPEG", ".npy").lower()
-    img_paths.append(os.path.join(root_dir, sub_dir) + "/" + img_file)
+    img_paths.append(img_folder_path + "/" + img_file)
 
 # # Check out image
 # img = Image.open(img_paths[0])

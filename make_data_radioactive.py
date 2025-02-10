@@ -114,7 +114,7 @@ def main(params):
     params.architecture = ckpt['params']['architecture']
     print("Building %s model ..." % params.architecture)
     model = build_model(params)
-    # model.cuda()
+    model.cuda()
     model.load_state_dict({k.replace("module.", ""): v for k, v in ckpt['model'].items()}, strict=False)
     model = model.eval()
     model.fc = nn.Sequential()
@@ -123,11 +123,9 @@ def main(params):
     transform = getImagenetTransform("none", img_size=params.img_size, crop_size=params.crop_size)
     img_orig = [transform(loader(p)).unsqueeze(0) for p in params.img_paths] # list of tensors of size (1, 3, 375, 500)
 
-    from data.loaders import imagenet as imgnet
-    # imagenet = imgnet.ImageNet10K(dataset="data/imagenet10K.csv", labels="data/mapping.csv")
 
     # Loading carriers
-    direction = torch.load(params.carrier_path)
+    direction = torch.load(params.carrier_path).cuda(non_blocking=True)
     assert direction.dim() == 2
     direction = direction[params.carrier_id:params.carrier_id + 1]
 
@@ -152,12 +150,12 @@ def main(params):
     if schedule is not None:
         schedule = repeat_to(schedule, params.epochs)
 
-    # img_center = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img_orig], dim=0)
+    img_center = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img_orig], dim=0)
     # ft_orig = model(center_da(img_orig, 0).cuda(non_blocking=True)).detach()
-    # ft_orig = model(img_center).detach()
+    ft_orig = model(img_center).detach()
 
-    img_center = torch.cat([center_da(x,0) for x in img_orig], dim=0)
-    ft_orig = model(img_center)
+    # img_center = torch.cat([center_da(x,0) for x in img_orig], dim=0)
+    # ft_orig = model(img_center)
 
     # # if params.angle is not None:
     # #     ft_orig = torch.load("/checkpoint/asablayrolles/radioactive_data/imagenet_ckpt_2/features/valid_resnet18_center.pth").cuda()
@@ -174,15 +172,15 @@ def main(params):
         for x in img:
             aug_params = data_augmentation.sample_params(x)
             aug_img = data_augmentation(x, aug_params)
-            # batch.append(aug_img.cuda(non_blocking=True))
-            batch.append(aug_img)
+            batch.append(aug_img.cuda(non_blocking=True))
+            # batch.append(aug_img)
         batch = torch.cat(batch, dim=0)
 
         # Forward augmented images
         ft = model(batch)
 
         if params.angle is None:
-            loss_ft = - torch.sum((ft - ft_orig) * direction)
+            loss_ft = -torch.sum((ft - ft_orig) * direction)
             loss_ft_l2 = params.lambda_ft_l2 * torch.norm(ft - ft_orig, dim=1).sum()
         else:
             dot_product = torch.sum((ft - ft_orig) * direction)
@@ -195,8 +193,8 @@ def main(params):
 
         loss_norm = 0
         for i in range(len(img)):
-            # loss_norm += params.lambda_l2_img * torch.norm(img[i].cuda(non_blocking=True) - img_orig[i].cuda(non_blocking=True))**2
-            loss_norm += params.lambda_l2_img * torch.norm(img[i]- img_orig[i]) ** 2 
+            loss_norm += params.lambda_l2_img * torch.norm(img[i].cuda(non_blocking=True) - img_orig[i].cuda(non_blocking=True))**2
+            # loss_norm += params.lambda_l2_img * torch.norm(img[i]- img_orig[i]) ** 2 
         loss = loss_ft + loss_norm + loss_ft_l2
 
         optimizer.zero_grad()
@@ -224,8 +222,8 @@ def main(params):
     img_new = [numpyPixel(x.data[0]).astype(np.float32) for x in img]
     img_old = [numpyPixel(x[0]).astype(np.float32) for x in img_orig]
 
-    # img_totest = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img])
-    img_totest = torch.cat([center_da(x,0) for x in img])
+    img_totest = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img])
+    # img_totest = torch.cat([center_da(x,0) for x in img])
     with torch.no_grad():
         ft_new = model(img_totest)
 
