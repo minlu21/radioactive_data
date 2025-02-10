@@ -378,7 +378,9 @@ def get_optimizer(parameters, s):
         raise Exception('Unknown optimization method: "%s"' % method)
 
     # check that we give good parameters to the optimizer
-    expected_args = inspect.getargspec(optim_fn.__init__)[0]
+    # expected_args = inspect.getargspec(optim_fn.__init__)[0]
+    expected_args = inspect.getfullargspec(optim_fn.__init__).args
+    # print(f"EXPECTED ARGS: {expected_args}")
     assert expected_args[:2] == ['self', 'params']
     if not all(k in expected_args[2:] for k in optim_params.keys()):
         raise Exception('Unexpected parameters: expected "%s", got "%s"' % (
@@ -513,6 +515,6 @@ def pad_tensor(tensor, n, pad_value=-1):
 
     return padded_tensor
 
-FAISS_RES = faiss.StandardGpuResources()
-FAISS_RES.setDefaultNullStreamAllDevices()
-FAISS_RES.setTempMemory(1200 * 1024 * 1024)
+# FAISS_RES = faiss.StandardGpuResources()
+# FAISS_RES.setDefaultNullStreamAllDevices()
+# FAISS_RES.setTempMemory(1200 * 1024 * 1024)

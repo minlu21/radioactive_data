@@ -313,7 +313,8 @@ class Trainer(object):
         self.model.train()
 
         # batch
-        images = images.cuda(non_blocking=True).half() if params.fp16 else images.cuda(non_blocking=True)
+        # images = images.cuda(non_blocking=True).half() if params.fp16 else images.cuda(non_blocking=True)
+        images = images.half() if params.fp16 else images
         if self.ftmodel is not None:
             with torch.no_grad():
                 images = self.ftmodel(images)
@@ -321,7 +322,8 @@ class Trainer(object):
         # forward / loss / optimize
         output = self.model(images)
 
-        loss = F.cross_entropy(output, targets.cuda(non_blocking=True), reduction='mean')
+        # loss = F.cross_entropy(output, targets.cuda(non_blocking=True), reduction='mean')
+        loss = F.cross_entropy(output, targets, reduction='mean')
         self.optimize(loss)
 
         # statistics

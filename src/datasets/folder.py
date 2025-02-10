@@ -237,11 +237,30 @@ def accimage_loader(path):
 
 
 def default_loader(path):
-    from torchvision import get_image_backend
-    if get_image_backend() == 'accimage':
-        return accimage_loader(path)
-    else:
-        return pil_loader(path)
+    # from torchvision import get_image_backend
+    # if get_image_backend() == 'accimage':
+    #     return accimage_loader(path)
+    # else:
+    #     return pil_loader(path)
+    return pil_loader(path)
+    # import pickle
+    # import os
+
+    # def unpickle(batch_file):
+    #     with open(batch_file, 'rb') as fo:
+    #         dict = pickle.load(fo, encoding='bytes')
+    #     return dict
+    
+    # dir_path = os.path.expanduser("~") + "/Developer/datasets/cifar-10"
+    # imgs = np.empty(shape=[0, 3072])
+    # labels = np.array([])
+    # for file in os.listdir(dir_path):
+    #     full_path = os.path.join(dir_path, file)
+    #     if file[:4] == "data":
+    #         batch_data = unpickle(full_path)
+    #         np.concatenate((imgs, batch_data[b"data"]))
+    #         np.concatenate((labels, batch_data[b"labels"]))
+    # return imgs
 
 
 class ImageFolder(DatasetFolder):

@@ -25,7 +25,7 @@ def check_model_params(params):
 def build_model(params):
     vision_models = [name for name in dir(models) if name.islower() and not name.startswith("__") and callable(models.__dict__[name])]
     if params.architecture in vision_models:
-        model = models.__dict__[params.architecture](num_classes=params.num_classes)
+        model = models.__dict__[params.architecture](num_classes=int(params.num_classes))
     else:
         assert False, "Architecture not recognized"
 

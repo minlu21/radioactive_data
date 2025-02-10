@@ -13,12 +13,16 @@ from os.path import basename, join
 
 from src.data_augmentations import RandomResizedCropFlip, CenterCrop
 from src.dataset import getImagenetTransform, NORMALIZE_IMAGENET
+from src.dataset import NORMALIZE_CIFAR, getCifarTransform
 from src.datasets.folder import default_loader
 from src.model import build_model
 from src.utils import initialize_exp, bool_flag, get_optimizer, repeat_to
 
 image_mean = torch.Tensor(NORMALIZE_IMAGENET.mean).view(-1, 1, 1)
 image_std = torch.Tensor(NORMALIZE_IMAGENET.std).view(-1, 1, 1)
+
+# image_mean = torch.Tensor(NORMALIZE_CIFAR.mean).view(-1, 1, 1)
+# image_std = torch.Tensor(NORMALIZE_CIFAR.std).view(-1, 1, 1)
 
 def numpyTranspose(x):
     return np.transpose(x.numpy(), (1, 2, 0))
@@ -103,7 +107,6 @@ def main(params):
 
         img_list = torch.load(params.img_list)
         params.img_paths = [img_list[i] for i in range(n_start, n_end)]
-    print("Image paths", params.img_paths)
 
     # Build model / cuda
     ckpt = torch.load(params.marking_network)
@@ -111,17 +114,20 @@ def main(params):
     params.architecture = ckpt['params']['architecture']
     print("Building %s model ..." % params.architecture)
     model = build_model(params)
-    model.cuda()
+    # model.cuda()
     model.load_state_dict({k.replace("module.", ""): v for k, v in ckpt['model'].items()}, strict=False)
     model = model.eval()
     model.fc = nn.Sequential()
 
     loader = default_loader
     transform = getImagenetTransform("none", img_size=params.img_size, crop_size=params.crop_size)
-    img_orig = [transform(loader(p)).unsqueeze(0) for p in params.img_paths]
+    img_orig = [transform(loader(p)).unsqueeze(0) for p in params.img_paths] # list of tensors of size (1, 3, 375, 500)
+
+    from data.loaders import imagenet as imgnet
+    # imagenet = imgnet.ImageNet10K(dataset="data/imagenet10K.csv", labels="data/mapping.csv")
 
     # Loading carriers
-    direction = torch.load(params.carrier_path).cuda()
+    direction = torch.load(params.carrier_path)
     assert direction.dim() == 2
     direction = direction[params.carrier_id:params.carrier_id + 1]
 
@@ -146,12 +152,15 @@ def main(params):
     if schedule is not None:
         schedule = repeat_to(schedule, params.epochs)
 
-    img_center = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img_orig], dim=0)
+    # img_center = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img_orig], dim=0)
     # ft_orig = model(center_da(img_orig, 0).cuda(non_blocking=True)).detach()
-    ft_orig = model(img_center).detach()
+    # ft_orig = model(img_center).detach()
 
-    if params.angle is not None:
-        ft_orig = torch.load("/checkpoint/asablayrolles/radioactive_data/imagenet_ckpt_2/features/valid_resnet18_center.pth").cuda()
+    img_center = torch.cat([center_da(x,0) for x in img_orig], dim=0)
+    ft_orig = model(img_center)
+
+    # # if params.angle is not None:
+    # #     ft_orig = torch.load("/checkpoint/asablayrolles/radioactive_data/imagenet_ckpt_2/features/valid_resnet18_center.pth").cuda()
 
     for iteration in range(params.epochs):
         if schedule is not None:
@@ -165,7 +174,8 @@ def main(params):
         for x in img:
             aug_params = data_augmentation.sample_params(x)
             aug_img = data_augmentation(x, aug_params)
-            batch.append(aug_img.cuda(non_blocking=True))
+            # batch.append(aug_img.cuda(non_blocking=True))
+            batch.append(aug_img)
         batch = torch.cat(batch, dim=0)
 
         # Forward augmented images
@@ -185,11 +195,12 @@ def main(params):
 
         loss_norm = 0
         for i in range(len(img)):
-            loss_norm += params.lambda_l2_img * torch.norm(img[i].cuda(non_blocking=True) - img_orig[i].cuda(non_blocking=True))**2
+            # loss_norm += params.lambda_l2_img * torch.norm(img[i].cuda(non_blocking=True) - img_orig[i].cuda(non_blocking=True))**2
+            loss_norm += params.lambda_l2_img * torch.norm(img[i]- img_orig[i]) ** 2 
         loss = loss_ft + loss_norm + loss_ft_l2
 
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
 
         logs = {
@@ -213,7 +224,8 @@ def main(params):
     img_new = [numpyPixel(x.data[0]).astype(np.float32) for x in img]
     img_old = [numpyPixel(x[0]).astype(np.float32) for x in img_orig]
 
-    img_totest = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img])
+    # img_totest = torch.cat([center_da(x, 0).cuda(non_blocking=True) for x in img])
+    img_totest = torch.cat([center_da(x,0) for x in img])
     with torch.no_grad():
         ft_new = model(img_totest)
 

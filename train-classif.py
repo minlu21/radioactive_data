@@ -90,43 +90,50 @@ def get_parser():
 
 def main(params):
 
-    # initialize the multi-GPU / multi-node training
-    init_distributed_mode(params)
+    print(params)
+
+    # # initialize the multi-GPU / multi-node training
+    # init_distributed_mode(params)
 
     # initialize the experiment / load data
     logger = initialize_exp(params)
 
     # Seed
     torch.manual_seed(params.seed)
-    torch.cuda.manual_seed_all(params.seed)
+    # torch.cuda.manual_seed_all(params.seed)
 
-    # initialize SLURM signal handler for time limit / pre-emption
-    if params.is_slurm_job:
-        init_signal_handler()
+    # # initialize SLURM signal handler for time limit / pre-emption
+    # if params.is_slurm_job:
+    #     init_signal_handler()
 
     # data loaders / samplers
-    populate_dataset(params)
-    train_data_loader, train_sampler, _ = get_data_loader(
-        params,
-        split='valid' if params.debug_train else 'train',
-        transform=params.train_transform,
-        shuffle=True,
-        distributed_sampler=params.multi_gpu,
-        watermark_path=params.train_path
-    )
+    # populate_dataset(params)
+    # train_data_loader, train_sampler, _ = get_data_loader(
+    #     params,
+    #     split='valid' if params.debug_train else 'train',
+    #     transform=params.train_transform,
+    #     shuffle=True,
+    #     distributed_sampler=params.multi_gpu,
+    #     watermark_path=params.train_path
+    # )
 
-    valid_data_loader, _, _ = get_data_loader(
-        params,
-        split='valid',
-        transform='center',
-        shuffle=False,
-        distributed_sampler=False
-    )
+    # valid_data_loader, _, _ = get_data_loader(
+    #     params,
+    #     split='valid',
+    #     transform='center',
+    #     shuffle=False,
+    #     distributed_sampler=False
+    # )
+    from data.loaders import imagenet as imgnet
+    from torchvision import transforms
+
+    imagenet_dataset = imgnet.ImageNet10K("data/imagenet10K.csv", labels="data/mapping.csv", transform=[transforms.Resize((224, 224))])
+    train_data_loader, valid_data_loader, test_data_loader = imagenet_dataset.get_dataloaders()
 
     # build model / cuda
     logger.info("Building %s model ..." % params.architecture)
     model = build_model(params)
-    model.cuda()
+    # model.cuda()
 
     if params.from_ckpt != "":
         ckpt = torch.load(params.from_ckpt)
@@ -148,10 +155,10 @@ def main(params):
 
         model.fc.reset_parameters()
 
-    # distributed  # TODO: check this https://github.com/NVIDIA/apex/blob/master/examples/imagenet/main.py#L142
-    if params.multi_gpu:
-        logger.info("Using nn.parallel.DistributedDataParallel ...")
-        model = nn.parallel.DistributedDataParallel(model, device_ids=[params.local_rank], output_device=params.local_rank, broadcast_buffers=True)
+    # # distributed  # TODO: check this https://github.com/NVIDIA/apex/blob/master/examples/imagenet/main.py#L142
+    # if params.multi_gpu:
+    #     logger.info("Using nn.parallel.DistributedDataParallel ...")
+    #     model = nn.parallel.DistributedDataParallel(model, device_ids=[params.local_rank], output_device=params.local_rank, broadcast_buffers=True)
 
 
     # build trainer / reload potential checkpoints / build evaluator
@@ -174,8 +181,8 @@ def main(params):
         # update epoch / sampler / learning rate
         trainer.epoch = epoch
         logger.info("============ Starting epoch %i ... ============" % trainer.epoch)
-        if params.multi_gpu:
-            train_sampler.set_epoch(epoch)
+        # if params.multi_gpu:
+        #     train_sampler.set_epoch(epoch)
 
         # update learning rate
         trainer.update_learning_rate()

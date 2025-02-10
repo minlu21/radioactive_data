@@ -43,11 +43,11 @@ DATASETS = {
     }
 }
 
-SUBCLASSES = {
-    "imagenet": {
-        n_cl: list(np.load("/private/home/asablayrolles/data/radioactive/imagenet_classes/%d.npy" % n_cl)) for n_cl in [10, 20, 50, 100, 200, 500]
-    }
-}
+# SUBCLASSES = {
+#     "imagenet": {
+#         n_cl: list(np.load("/private/home/asablayrolles/data/radioactive/imagenet_classes/%d.npy" % n_cl)) for n_cl in [10, 20, 50, 100, 200, 500]
+#     }
+# }
 
 def populate_dataset(params):
     assert params.dataset in DATASETS
@@ -59,7 +59,7 @@ def populate_dataset(params):
 
 
 NORMALIZE_IMAGENET = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-NORMALIZE_CIFAR = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
+NORMALIZE_CIFAR = transforms.Normalize(mean=[0.4914,], std=[0.2023,])
 
 
 def getCifarTransform(name, img_size=40, crop_size=32, as_list=False, normalization=True):
@@ -69,7 +69,7 @@ def getCifarTransform(name, img_size=40, crop_size=32, as_list=False, normalizat
     if name == "random":
         transform = [
             # lambda x: random_crop(x, crop_size=crop_size, padding=padding),
-            # random_hflip,
+            # transforms.RandomHorizontalFlip(),
             transforms.ToTensor()
         ]
     elif name == "flip":
