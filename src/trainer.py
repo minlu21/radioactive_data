@@ -199,7 +199,7 @@ class Trainer(object):
         for k, v in self.optimizers.items():
             data['optimizer_%s' % k] = v.state_dict()
 
-        checkpoint_path = os.path.join(self.params.dump_path, 'checkpoint-%d.pth' % self.params.global_rank)
+        checkpoint_path = os.path.join(self.params.dump_path, 'checkpoint.pth')
         logger.info("Saving checkpoint to %s ..." % checkpoint_path)
         torch.save(data, checkpoint_path)
 
@@ -234,8 +234,8 @@ class Trainer(object):
         """
         Save the models periodically.
         """
-        if not self.params.is_master:
-            return
+        # if not self.params.is_master:
+        #     return
         if self.params.save_periodic > 0 and self.epoch % self.params.save_periodic == 0:
             self.save_model('periodic-%i' % self.epoch)
 
@@ -243,8 +243,8 @@ class Trainer(object):
         """
         Save best models according to given validation metrics.
         """
-        if not self.params.is_master:
-            return
+        # if not self.params.is_master:
+        #     return
 
         for metric, biggest in self.metrics:
             factor = 1 if biggest else -1
@@ -313,8 +313,8 @@ class Trainer(object):
         self.model.train()
 
         # batch
-        # images = images.cuda(non_blocking=True).half() if params.fp16 else images.cuda(non_blocking=True)
-        images = images.half() if params.fp16 else images
+        images = images.cuda(non_blocking=True).half() if params.fp16 else images.cuda(non_blocking=True)
+        # images = images.half() if params.fp16 else images
         if self.ftmodel is not None:
             with torch.no_grad():
                 images = self.ftmodel(images)
@@ -322,8 +322,8 @@ class Trainer(object):
         # forward / loss / optimize
         output = self.model(images)
 
-        # loss = F.cross_entropy(output, targets.cuda(non_blocking=True), reduction='mean')
-        loss = F.cross_entropy(output, targets, reduction='mean')
+        loss = F.cross_entropy(output, targets.cuda(non_blocking=True), reduction='mean')
+        # loss = F.cross_entropy(output, targets, reduction='mean')
         self.optimize(loss)
 
         # statistics

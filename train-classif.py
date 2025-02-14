@@ -124,16 +124,16 @@ def main(params):
     #     shuffle=False,
     #     distributed_sampler=False
     # )
-    from data.loaders import imagenet as imgnet
+    from data.src.loaders import imagenet as imgnet
     from torchvision import transforms
 
-    imagenet_dataset = imgnet.ImageNet10K("data/imagenet10K.csv", labels="data/mapping.csv", transform=[transforms.Resize((224, 224))])
+    imagenet_dataset = imgnet.ImageNet10K("imagenet10K.csv", labels="mapping.csv", transform=[transforms.RandomResizedCropFlip((224, 224)), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     train_data_loader, valid_data_loader, test_data_loader = imagenet_dataset.get_dataloaders()
 
     # build model / cuda
     logger.info("Building %s model ..." % params.architecture)
     model = build_model(params)
-    # model.cuda()
+    model.cuda()
 
     if params.from_ckpt != "":
         ckpt = torch.load(params.from_ckpt)
@@ -203,8 +203,8 @@ def main(params):
         # print / JSON log
         for k, v in scores.items():
             logger.info('%s -> %.6f' % (k, v))
-        if params.is_master:
-            logger.info("__log__:%s" % json.dumps(scores))
+        # if params.is_master:
+        logger.info("__log__:%s" % json.dumps(scores))
 
         # end of epoch
         trainer.save_best_model(scores)
