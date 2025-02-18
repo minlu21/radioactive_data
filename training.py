@@ -14,7 +14,7 @@ from src.dataset import NORMALIZE_IMAGENET
 def train_loop(dataloader, model, loss_fn, optimizer, device="cpu"):
     size = len(dataloader.dataset)
     model.train()
-    for batch, (image, target) in tqdm(enumerate(dataloader)):
+    for batch, (image, target) in enumerate(dataloader):
         image_d, target_d = image.to(device), target.to(device)
         prediction = model(image_d)
         loss = loss_fn(prediction, target_d)
@@ -22,9 +22,9 @@ def train_loop(dataloader, model, loss_fn, optimizer, device="cpu"):
         optimizer.step()
         optimizer.zero_grad()
 
-        if batch % 100 == 0:
+        if batch % 10 == 0:
             loss, current = loss.item(), batch * dataloader.batch_size + len(image)
-            print(f"Loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
+            wandb.log({"Training Loss": loss})
 
 
 def validate_loop(dataloader, model, loss_fn, device="cpu"):
@@ -45,8 +45,7 @@ def validate_loop(dataloader, model, loss_fn, device="cpu"):
     test_loss /= len(dataloader)
     for k in [1, 5, 10, 50]:
         accuracies[k] /= size
-        
-    print(f"Test Error: \n Top 1 Accuracy: {(100*accuracies[1]):>4f}%, Avg loss: {test_loss:>8f} \n")
+    wandb.log({"Top 1 Accuracy": 100 * accuracies[1], "Top 5 Accuracy": 100 * accuracies[5], "Top 10 Accuracy": 100 * accuracies[10], "Top 50 Accuracies": 100 * accuracies[50], "Average Validation Loss": test_loss})
 
 
 def check_top_k_accuracy(prediction, target, k=1):
@@ -91,7 +90,7 @@ imagenet_dataset = imgnet.TinyImagenet(train_dataset="tinyimagenet_train.csv", v
 train_data_loader, val_data_loader, test_data_loader = imagenet_dataset.get_dataloaders()
 
 for e in tqdm(range(configs["epochs"])):
-    print(f"Epoch {e + 1}\n----------------------------------")
+    print(f"Epoch {e}\n----------------------------------")
     train_loop(train_data_loader, model, loss_fn, optimizer, device)
     validate_loop(val_data_loader, model, loss_fn, device)
 print("Done!")
