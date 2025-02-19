@@ -1,0 +1,24 @@
+#!/bin/bash
+#SBATCH -Jtrain-resnet18
+#SBATCH --nodes=1 
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:1
+#SBATCH --output=Report.out
+#SBATCH --error=Report.err
+#SBATCH --time=08:00:00
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=mlu316@gatech.edu
+
+lscpu
+
+echo "----------------------------------------"
+module load cuda/12.6
+module load gcc
+module load intel-oneapi-mkl
+source ${INTEL_ONEAPI_MKLROOT}/setvars.sh
+
+echo "----------------------------------------"
+source activate base
+conda env list
+conda activate radioactive_data
+python training.py

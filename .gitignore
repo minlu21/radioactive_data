@@ -8,3 +8,5 @@ scratch
 imgs/
 defunct*/
 wandb/
+*.out
+*.err
