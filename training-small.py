@@ -8,7 +8,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import models, transforms
+from torchvision import models, transforms, datasets
+from torch.utils.data import DataLoader
 
 from data.src.loaders import tinyimagenet as imgnet
 from data.src.loaders import cifar10 as cifar
@@ -96,7 +97,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, device="cpu"):
 
         if batch % 10 == 0:
             train_loss += loss.item()
-        wandb.log({"Training Loss": train_loss / (batch + 1)})
+        wandb.log({"Training Loss": train_loss})
     model.eval()
     with torch.no_grad():
         for image, target in dataloader:
@@ -134,12 +135,12 @@ def validate_loop(dataloader, model, loss_fn, device="cpu"):
     for k in [1, 5]:
         accuracies[k] /= size
     # wandb.log({"Top 1 Accuracy": 100 * accuracies[1], "Top 5 Accuracy": 100 * accuracies[5], "Top 10 Accuracy": 100 * accuracies[10], "Top 50 Accuracies": 100 * accuracies[50], "Average Validation Loss": test_loss})
-    wandb.log({"Validation Loss": test_loss, "Top 1 Validation Accuracy": 100 * accuracies[1], "Top 5 Validation Accuracy": 100 * accuracies[5]}) 
+    wandb.log({"Average Validation Loss": test_loss, "Top 1 Validation Accuracy": 100 * accuracies[1], "Top 5 Validation Accuracy": 100 * accuracies[5]}) 
 
 
 def check_top_k_accuracy(prediction, target, k=1):
-    _, top_k_preds = torch.topk(prediction, k)
-    target_idx = torch.argmax(target)
+    _, top_k_preds = torch.topk(prediction, k, dim=1)
+    target_idx = torch.argmax(target, dim=1, keepdim=True).expand(-1, k)
     compare_result = torch.eq(top_k_preds, target_idx.expand(top_k_preds.size()))
     return torch.sum(compare_result).int().item()
             
@@ -164,22 +165,14 @@ configs = {
     "momentum": 0.9,
     "weight decay": 1e-4,
     "batch size": 128,
-    "epochs": 240,
+    "epochs": 60,
     "seed": 42
 }
 
-wandb.init(
-    project="vanilla-cifar10-small-resnet18",
-    config={
-        "learning_rate": configs["learning rate"],
-        "architecture": configs["architecture"],
-        "dataset": configs["dataset"],
-        "num classes": configs["num classes"],
-        "epochs": configs["epochs"]
-    }
-)
+wandb.init(project="vanilla-cifar10-small-resnet18", config=configs)
 
 torch.manual_seed(configs["seed"])
+torch.cuda.manual_seed(configs["seed"])
 
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
@@ -190,7 +183,6 @@ print(f"Using {device} device")
 # Top 1 Accuracy: 69%, Top 5 Accuracy: 89%
 # model = models.resnet18()
 model = ResNet18()
-# model.fc = nn.Linear(in_features=512, out_features=configs["num classes"], bias=True)
 model.to(device)
 print(model)
 loss_fn = nn.CrossEntropyLoss()
@@ -214,5 +206,8 @@ for e in tqdm(range(configs["epochs"]), file=sys.stdout):
     wandb.log({"Learning Rate": scheduler.get_last_lr()[0]})
     scheduler.step()
 
+
+print("Saving small ResNet18 model trained on CIFAR-10...")
+torch.save(model.state_dict(), "small_resnet18_state_dict.pth")
 
 print("Done!")
